@@ -138,9 +138,9 @@ class KeyboardRenderer:
                 left_thumb_str = " ".join(left_thumb_keys)
                 right_thumb_str = " ".join(right_thumb_keys)
                 
-                # Center the thumb row
+                # Center the thumb row with proper spacing to align with main rows
                 thumb_indent = " " * 6
-                thumb_spacing = "        "
+                thumb_spacing = "                "  # 16 spaces to match main rows
                 thumb_line = f"{thumb_indent}{left_thumb_str}{thumb_spacing}{right_thumb_str}"
                 lines.append(thumb_line)
         
