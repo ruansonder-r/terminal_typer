@@ -1,0 +1,25 @@
+{
+    "keymap": {
+        "compatible": "zmk,keymap",
+        "layers": {
+            "default_layer": [
+                "TAB Q W E R T Y U I O P BSPC",
+                "LCTRL A S D F G H J K L SEMI SQT", 
+                "LSHFT Z X C V B N M COMMA DOT FSLH ESC",
+                "mo(1) LEFT_GUI SPACE RET LCTRL mo(2)"
+            ],
+            "lower_layer": [
+                "TAB N1 N2 N3 N4 N5 N6 N7 N8 N9 N0 BSPC",
+                "BT_CLR BT_SEL_0 BT_SEL_1 BT_SEL_2 BT_SEL_3 BT_SEL_4 LEFT DOWN UP RIGHT trans trans",
+                "LSHFT trans trans C_PREV C_PLAY_PAUSE C_NEXT HOME END C_VOLUME_UP C_VOL_DN C_MUTE TILDE",
+                "LGUI trans SPACE RET DEL RALT"
+            ],
+            "raise_layer": [
+                "TAB EXCL AT HASH DLLR PRCNT CARET AMPS ASTRK LPAR RPAR BSPC",
+                "LCTRL trans trans trans SCRL_LEFT SCRL_UP MINUS EQUAL LBKT RBKT BSLH GRAVE",
+                "LSHFT trans trans trans SCRL_RIGHT SCRL_DOWN UNDER PLUS LBRC RBRC PIPE TILDE",
+                "SCRL_DOWN LEFT_GUI SPACE RET trans RALT"
+            ]
+        }
+    }
+}

@@ -1,0 +1,10 @@
+# Core dependencies for terminal_typer
+# Note: pynput will be needed for Phase 2 (keyboard input capture)
+# curses is part of Python standard library
+
+# For Phase 1 (current): No external dependencies needed
+# For Phase 2: pynput>=1.7.6
+pynput>=1.7.6
+
+# Development dependencies (optional)
+# pytest>=7.0.0  # For testing 
