@@ -60,9 +60,6 @@ class TerminalInterface:
         self.input_listener = InputListener()
         self.input_listener.set_wpm_calculator(self.wpm_calculator)
         self.input_listener.set_keymap_parser(self.parser)
-        
-        # Set up callbacks
-        self.input_listener.set_key_change_callback(self._on_key_change)
     
     def run(self) -> None:
         """Start the terminal interface."""
