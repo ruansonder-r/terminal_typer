@@ -78,7 +78,7 @@ class InputListener:
         
         # Word tracking
         self.current_word = ""
-        self.word_boundaries = {' ', '.'}  # Space and period are word boundaries
+        self.word_boundaries = {' ', '.', 'space', 'dot'}  # Space and period are word boundaries (both char and key names)
     
     def set_wpm_calculator(self, wpm_calculator: WPMCalculator) -> None:
         """Set the WPM calculator for keystroke tracking."""
