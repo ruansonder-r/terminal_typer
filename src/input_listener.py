@@ -75,6 +75,10 @@ class InputListener:
         
         # Keymap parser for automatic layer detection
         self.keymap_parser: Optional[KeymapParser] = None
+        
+        # Word tracking
+        self.current_word = ""
+        self.word_boundaries = {' ', '.'}  # Space and period are word boundaries
     
     def set_wpm_calculator(self, wpm_calculator: WPMCalculator) -> None:
         """Set the WPM calculator for keystroke tracking."""
@@ -83,6 +87,10 @@ class InputListener:
     def set_keymap_parser(self, keymap_parser: KeymapParser) -> None:
         """Set the keymap parser for automatic layer detection."""
         self.keymap_parser = keymap_parser
+    
+    def get_current_word(self) -> str:
+        """Get the current word being typed."""
+        return self.current_word
     
     def start_listening(self, callback: Callable[[Set[str], str], None]) -> None:
         """Start listening for keyboard input."""
@@ -106,6 +114,9 @@ class InputListener:
             key_str = self._key_to_string(key)
             if not key_str:
                 return
+            
+            # Handle word building
+            self._handle_word_building(key_str)
             
             # Map to ZMK key name
             zmk_key = self.key_mapping.get(key_str.lower(), key_str.upper())
@@ -155,6 +166,26 @@ class InputListener:
         except Exception as e:
             print(f"Error handling key release: {e}")
     
+    def _handle_word_building(self, key_str: str) -> None:
+        """Handle word building logic."""
+        # Check if it's a word boundary
+        if key_str in self.word_boundaries:
+            # Clear the current word when a boundary is reached
+            self.current_word = ""
+            return
+        
+        # Check if it's backspace
+        if key_str == 'backspace':
+            # Remove the last character from the current word
+            if self.current_word:
+                self.current_word = self.current_word[:-1]
+            return
+        
+        # Check if it's a printable character (for word building)
+        if self._is_printable_key(key_str):
+            # Add the character to the current word
+            self.current_word += key_str
+    
     def _key_to_string(self, key) -> Optional[str]:
         """Convert pynput key to string."""
         if hasattr(key, 'char') and key.char:
@@ -165,7 +196,7 @@ class InputListener:
             return None
     
     def _is_printable_key(self, key_str: str) -> bool:
-        """Check if a key is printable (for WPM calculation)."""
+        """Check if a key is printable (for WPM calculation and word building)."""
         return len(key_str) == 1 and key_str.isprintable() and not key_str.isspace()
     
     def _handle_layer_key_press(self, zmk_key: str) -> None:
@@ -238,6 +269,9 @@ class InputListener:
     # Simulation methods for testing
     def _on_press_simulation(self, key_str: str) -> None:
         """Simulate a key press for testing."""
+        # Handle word building
+        self._handle_word_building(key_str)
+        
         zmk_key = self.key_mapping.get(key_str.lower(), key_str.upper())
         if zmk_key not in self.pressed_keys:
             self.pressed_keys.add(zmk_key)

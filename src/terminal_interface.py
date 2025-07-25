@@ -120,11 +120,35 @@ class TerminalInterface:
         # Get terminal dimensions
         max_y, max_x = self.screen.getmaxyx()
         
-        # Render keyboard layout starting at the top
-        self._render_keyboard_layout(0)
+        # Display current word at the top
+        self._display_current_word(0)
+        
+        # Render keyboard layout starting below the word display
+        self._render_keyboard_layout(2)
         
         # Refresh screen
         self.screen.refresh()
+    
+    def _display_current_word(self, start_y: int) -> None:
+        """Display the current word being typed."""
+        if not self.input_listener:
+            return
+        
+        current_word = self.input_listener.get_current_word()
+        
+        # Create the word display line with space and period symbols
+        if current_word:
+            word_display = f" {current_word} "
+        else:
+            word_display = " "
+        
+        # Center the word display
+        max_x = self.screen.getmaxyx()[1] if self.screen else 80
+        word_x = max(0, (max_x - len(word_display)) // 2)
+        
+        # Display the word
+        if self.screen and start_y < curses.LINES - 1:
+            self.screen.addstr(start_y, word_x, word_display)
     
     def _render_keyboard_layout(self, start_y: int) -> None:
         """Render the keyboard layout at the specified Y position."""
