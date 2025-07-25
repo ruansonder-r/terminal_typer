@@ -142,9 +142,12 @@ class TerminalInterface:
         else:
             word_display = " "
         
-        # Center the word display
-        max_x = self.screen.getmaxyx()[1] if self.screen else 80
-        word_x = max(0, (max_x - len(word_display)) // 2)
+        # Calculate keyboard center position based on actual layout
+        # From analysis: middle row is 85 characters, center is at position 42
+        keyboard_center = 42
+        
+        # Center the word relative to the keyboard center
+        word_x = max(0, keyboard_center - (len(word_display) // 2))
         
         # Display the word
         if self.screen and start_y < curses.LINES - 1:
