@@ -113,14 +113,15 @@ class KeyboardRenderer:
             right_str = " ".join(right_keys)
             
             left_indent = " " * (i * 2)
-            right_indent = " " * ((2 - i) * 2)
+            right_indent = " " * (-1*i * 2)
             
             if self.wpm_calculator and i == 1:
                 wpm_display = self.wpm_calculator.get_wpm_display()
-                center_line = f"{left_indent}{left_str} {wpm_display} {right_indent}{right_str}"
+                adjusted_right_indent = " " * max(0, (2 - i*4) * 2)
+                center_line = f"{left_indent}{left_str} {wpm_display} {adjusted_right_indent}{right_str}"
             else:
-                base_spacing = "                "
-                adjusted_right_indent = " " * max(0, (2 - i) * 2)
+                base_spacing = "         "
+                adjusted_right_indent = " " * max(0, (4 - i*2) * 2)
                 center_line = f"{left_indent}{left_str}{base_spacing}{adjusted_right_indent}{right_str}"
             
             lines.append(center_line)
@@ -139,8 +140,8 @@ class KeyboardRenderer:
                 right_thumb_str = " ".join(right_thumb_keys)
                 
                 # Center the thumb row with proper spacing to align with main rows
-                thumb_indent = " " * 6
-                thumb_spacing = "                "  # 16 spaces to match main rows
+                thumb_indent = " " * 24
+                thumb_spacing = "     "  # 16 spaces to match main rows
                 thumb_line = f"{thumb_indent}{left_thumb_str}{thumb_spacing}{right_thumb_str}"
                 lines.append(thumb_line)
         
