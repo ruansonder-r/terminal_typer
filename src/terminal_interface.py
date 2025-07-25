@@ -13,48 +13,60 @@ class TerminalInterface:
     Provides dynamic display of keyboard layout with keypress highlighting.
     """
     
-    def __init__(self, keymap_file: str):
+    def __init__(self, keymap_file: str, visual_style: str = "bold"):
         """
         Initialize the terminal interface.
         
         Args:
             keymap_file: Path to the ZMK keymap JSON file
+            visual_style: Initial visual style for pressed keys
         """
         self.keymap_file = keymap_file
-        self.parser: Optional[KeymapParser] = None
-        self.renderer: Optional[KeyboardRenderer] = None
-        self.input_listener: Optional[InputListener] = None
-        self.wpm_calculator: Optional[WPMCalculator] = None
+        self.visual_style = visual_style
+        self.visual_styles = [
+            "bold", "reverse", "brackets", "symbols", 
+            "exclamation", "hash", "arrows", "stars"
+        ]
+        self.current_style_index = self.visual_styles.index(visual_style) if visual_style in self.visual_styles else 0
         
-        # Terminal state
-        self.screen = None
-        self.is_running = False
+        # Initialize components
+        self.parser = None
+        self.renderer = None
+        self.input_listener = None
+        self.wpm_calculator = None
         
-        # Display state
-        self.current_layer = "default_layer"
+        # State
         self.pressed_keys: Set[str] = set()
-        self.unsupported_keys: Set[str] = set()
-        
-        # Error message
+        self.current_layer = "default_layer"
+        self.screen = None
         self.error_message = ""
         self.error_timeout = 0
+        
+        # Initialize components
+        self._initialize_components()
+    
+    def _initialize_components(self) -> None:
+        """Initialize all components."""
+        # Initialize parser
+        self.parser = KeymapParser(self.keymap_file)
+        
+        # Initialize renderer with current visual style
+        self.renderer = KeyboardRenderer(visual_style=self.visual_style)
+        
+        # Initialize WPM calculator
+        self.wpm_calculator = WPMCalculator()
+        
+        # Initialize input listener
+        self.input_listener = InputListener()
+        self.input_listener.set_wpm_calculator(self.wpm_calculator)
+        self.input_listener.set_keymap_parser(self.parser)
+        
+        # Set up callbacks
+        self.input_listener.set_key_change_callback(self._on_key_change)
     
     def run(self) -> None:
         """Start the terminal interface."""
         try:
-            # Initialize components
-            self.parser = KeymapParser(self.keymap_file)
-            self.renderer = KeyboardRenderer()
-            self.input_listener = InputListener()
-            self.wpm_calculator = WPMCalculator()
-            
-            # Connect WPM calculator
-            self.renderer.set_wpm_calculator(self.wpm_calculator)
-            self.input_listener.set_wpm_calculator(self.wpm_calculator)
-            
-            # Connect keymap parser for automatic layer detection
-            self.input_listener.set_keymap_parser(self.parser)
-            
             # Start curses interface
             curses.wrapper(self._main_loop)
             
@@ -100,11 +112,23 @@ class TerminalInterface:
         """Callback for key state changes."""
         self.pressed_keys = pressed_keys
         self.current_layer = current_layer
-        self.unsupported_keys = self.input_listener.get_unsupported_keys()
         
         # Check for Ctrl+C to exit
         if 'LCTRL' in pressed_keys and 'C' in pressed_keys:
             self.is_running = False
+        
+        # Check for F4 to cycle visual styles
+        if 'F4' in pressed_keys:
+            self._cycle_visual_style()
+    
+    def _cycle_visual_style(self) -> None:
+        """Cycle through available visual styles."""
+        self.current_style_index = (self.current_style_index + 1) % len(self.visual_styles)
+        self.visual_style = self.visual_styles[self.current_style_index]
+        
+        # Update renderer with new style
+        if self.renderer:
+            self.renderer.set_visual_style(self.visual_style)
     
     def _update_display(self) -> None:
         """Update the terminal display."""
@@ -147,7 +171,7 @@ class TerminalInterface:
     
     def _display_line_with_bold(self, y: int, x: int, line: str) -> None:
         """
-        Display a line with bold formatting for ** markers.
+        Display a line with formatting for pressed keys.
         
         Args:
             y: Y position on screen
@@ -157,6 +181,19 @@ class TerminalInterface:
         if not self.screen:
             return
         
+        # Handle different visual styles
+        if "**" in line:
+            # Bold style: **key**
+            self._display_bold_style(y, x, line)
+        elif "REV" in line:
+            # Reverse video style: REV[key]REV
+            self._display_reverse_style(y, x, line)
+        else:
+            # Other styles (brackets, symbols, etc.) - display as normal
+            self.screen.addstr(y, x, line)
+    
+    def _display_bold_style(self, y: int, x: int, line: str) -> None:
+        """Display line with bold formatting for ** markers."""
         # Split the line by ** markers
         parts = line.split('**')
         current_x = x
@@ -166,6 +203,21 @@ class TerminalInterface:
                 # Apply bold formatting for odd-indexed parts (between ** markers)
                 if i % 2 == 1:  # This part should be bold
                     self.screen.addstr(y, current_x, part, curses.A_BOLD)
+                else:  # This part should be normal
+                    self.screen.addstr(y, current_x, part)
+                current_x += len(part)
+    
+    def _display_reverse_style(self, y: int, x: int, line: str) -> None:
+        """Display line with reverse video formatting for REV markers."""
+        # Split the line by REV markers
+        parts = line.split('REV')
+        current_x = x
+        
+        for i, part in enumerate(parts):
+            if part:  # Skip empty parts
+                # Apply reverse video formatting for odd-indexed parts (between REV markers)
+                if i % 2 == 1:  # This part should be reverse video
+                    self.screen.addstr(y, current_x, part, curses.A_REVERSE)
                 else:  # This part should be normal
                     self.screen.addstr(y, current_x, part)
                 current_x += len(part)

@@ -121,6 +121,21 @@ listener.stop_listening()
 - Supports letters, numbers, symbols, and special keys
 - Handles unsupported keys gracefully
 
+#### Multiple Visual Styles for Pressed Keys
+- **Bold**: `**key**` (default style)
+- **Reverse Video**: `[key]` with reverse video highlighting
+- **Brackets**: `<key>` instead of `[key]`
+- **Symbols**: `[★key★]` with star symbols
+- **Exclamation**: `[!key!]` with exclamation marks
+- **Hash**: `[#key#]` with hash symbols
+- **Arrows**: `[▶key◀]` with arrow symbols
+- **Stars**: `[*key*]` with asterisks
+
+**Usage:**
+- Press **F4** to cycle through visual styles in real-time
+- Start with specific style: `python3 run_terminal_typer.py reverse`
+- All styles work well on small terminal windows
+
 #### Automatic Layer Detection
 - Automatically switches to the layer containing a pressed key
 - No need to remember layer modifier keys for basic navigation
@@ -133,15 +148,16 @@ listener.stop_listening()
 - Clean, terminal-friendly layout with brackets and indentation
 - Increased spacing between left and right halves (4 tabs)
 - Progressive indentation for visual effect
-- Key highlighting: All keys shown as `[key]`, pressed keys displayed in **bold**
+- Multiple visual indicators for pressed keys (see above)
 
 #### Terminal Interface
 - Full-screen curses interface
 - **Minimal, clean display** with no distracting text
 - Real-time keyboard layout display
-- Key highlighting for pressed keys
+- Multiple visual styles for key highlighting
 - **WPM counter integrated into layout**
 - Ctrl+C to exit gracefully
+- F4 to cycle through visual styles
 
 #### Key Mapping
 The tool maps physical keys to ZMK key names:
@@ -196,6 +212,7 @@ The renderer supports most ZMK key names including:
 - **Automatic layer switching**: Press any key to automatically switch to its layer
 - **F1**: Switch to lower layer (numbers, media controls)
 - **F2**: Switch to raise layer (symbols, navigation)
+- **F4**: Cycle through visual styles for pressed keys
 - **Ctrl+C**: Exit the application
 
 ### Requirements
@@ -235,7 +252,7 @@ If you press keys that aren't mapped:
 
 ## Next Steps (Phase 3)
 
-- [ ] Improved ASCII layout formatting
+- [x] Improved ASCII layout formatting (Multiple visual styles implemented)
 - [ ] Better layer switching visualization
 - [ ] Configuration file support
 - [ ] Custom key mapping support

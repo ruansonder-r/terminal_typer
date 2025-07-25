@@ -6,8 +6,21 @@ class KeyboardRenderer:
     Handles the visual layout and key highlighting.
     """
     
-    def __init__(self):
-        """Initialize the keyboard renderer."""
+    def __init__(self, visual_style: str = "bold"):
+        """
+        Initialize the keyboard renderer.
+        
+        Args:
+            visual_style: Style for pressed key highlighting
+                - "bold": **key** (current style)
+                - "reverse": [key] with reverse video
+                - "brackets": <key> instead of [key]
+                - "symbols": [★key★] with symbols
+                - "exclamation": [!key!] with exclamation marks
+                - "hash": [#key#] with hash symbols
+        """
+        self.visual_style = visual_style
+        
         # Key name to display character mapping
         self.key_display_map = {
             # Letters
@@ -50,6 +63,56 @@ class KeyboardRenderer:
         
         # WPM calculator (optional)
         self.wpm_calculator = None
+    
+    def set_visual_style(self, style: str) -> None:
+        """
+        Set the visual style for pressed key highlighting.
+        
+        Args:
+            style: Visual style name
+        """
+        self.visual_style = style
+    
+    def _format_pressed_key(self, display: str) -> str:
+        """
+        Format a pressed key according to the current visual style.
+        
+        Args:
+            display: Key display text
+            
+        Returns:
+            Formatted key string
+        """
+        if self.visual_style == "bold":
+            return f"**[{display:^3}]**"
+        elif self.visual_style == "reverse":
+            return f"REV[{display:^3}]REV"  # Will be processed by terminal interface
+        elif self.visual_style == "brackets":
+            return f"<{display:^3}>"
+        elif self.visual_style == "symbols":
+            return f"[★{display:^3}★]"
+        elif self.visual_style == "exclamation":
+            return f"[!{display:^3}!]"
+        elif self.visual_style == "hash":
+            return f"[#{display:^3}#]"
+        elif self.visual_style == "arrows":
+            return f"[▶{display:^3}◀]"
+        elif self.visual_style == "stars":
+            return f"[*{display:^3}*]"
+        else:
+            return f"**[{display:^3}]**"  # Default to bold
+    
+    def _format_normal_key(self, display: str) -> str:
+        """
+        Format a normal (not pressed) key.
+        
+        Args:
+            display: Key display text
+            
+        Returns:
+            Formatted key string
+        """
+        return f"[{display:^3}]"
     
     def set_wpm_calculator(self, wpm_calculator) -> None:
         """
@@ -118,18 +181,18 @@ class KeyboardRenderer:
             for key in left_row:
                 display = self.get_key_display(key)
                 if key in self.pressed_keys:
-                    left_keys.append(f"**[{display:^3}]**")
+                    left_keys.append(self._format_pressed_key(display))
                 else:
-                    left_keys.append(f"[{display:^3}]")
+                    left_keys.append(self._format_normal_key(display))
             
             # Build right half
             right_keys = []
             for key in right_row:
                 display = self.get_key_display(key)
                 if key in self.pressed_keys:
-                    right_keys.append(f"**[{display:^3}]**")
+                    right_keys.append(self._format_pressed_key(display))
                 else:
-                    right_keys.append(f"[{display:^3}]")
+                    right_keys.append(self._format_normal_key(display))
             
             # Combine with proper spacing (4 tabs = 16 spaces)
             left_str = " ".join(left_keys)
@@ -171,28 +234,28 @@ class KeyboardRenderer:
                 
                 # Highlight if pressed
                 if left_thumb in self.pressed_keys:
-                    left_thumb_str = f"**[{left_thumb_display:^3}]**"
+                    left_thumb_str = self._format_pressed_key(left_thumb_display)
                 else:
-                    left_thumb_str = f"[{left_thumb_display:^3}]"
+                    left_thumb_str = self._format_normal_key(left_thumb_display)
                 
                 if left_gui in self.pressed_keys:
-                    left_gui_str = f"**[{left_gui_display:^3}]**"
+                    left_gui_str = self._format_pressed_key(left_gui_display)
                 else:
-                    left_gui_str = f"[{left_gui_display:^3}]"
+                    left_gui_str = self._format_normal_key(left_gui_display)
                 
                 if right_gui in self.pressed_keys:
-                    right_gui_str = f"**[{right_gui_display:^3}]**"
+                    right_gui_str = self._format_pressed_key(right_gui_display)
                 else:
-                    right_gui_str = f"[{right_gui_display:^3}]"
+                    right_gui_str = self._format_normal_key(right_gui_display)
                 
                 if right_thumb in self.pressed_keys:
-                    right_thumb_str = f"**[{right_thumb_display:^3}]**"
+                    right_thumb_str = self._format_pressed_key(right_thumb_display)
                 else:
-                    right_thumb_str = f"[{right_thumb_display:^3}]"
+                    right_thumb_str = self._format_normal_key(right_thumb_display)
                 
                 # Thumb row with proper spacing (4 tabs = 16 spaces)
-                space_str = '**[SPC]** ' if 'SPACE' in self.pressed_keys else ' [SPC] '
-                ent_str = '**[ENT]** ' if 'RET' in self.pressed_keys else ' [ENT] '
+                space_str = self._format_pressed_key('SPC') + ' ' if 'SPACE' in self.pressed_keys else self._format_normal_key('SPC') + ' '
+                ent_str = self._format_pressed_key('ENT') + ' ' if 'RET' in self.pressed_keys else self._format_normal_key('ENT') + ' '
                 thumb_line = f"             {left_gui_str}{left_thumb_str}{space_str}                {ent_str}{right_gui_str}{right_thumb_str}"
                 lines.append(thumb_line)
         

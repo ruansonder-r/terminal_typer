@@ -44,7 +44,7 @@ class InputListener:
             'cmd_l': 'LEFT_GUI', 'cmd_r': 'LEFT_GUI', 'alt_l': 'RALT', 'alt_r': 'RALT',
             
             # Layer keys (these will be handled specially)
-            'f1': 'mo(1)', 'f2': 'mo(2)',  # Using F1/F2 as layer keys
+            'f1': 'mo(1)', 'f2': 'mo(2)', 'f4': 'F4',  # Using F1/F2 as layer keys, F4 for visual style cycling
             
             # Media keys
             'media_previous': 'C_PREV', 'media_play_pause': 'C_PLAY_PAUSE', 'media_next': 'C_NEXT',
