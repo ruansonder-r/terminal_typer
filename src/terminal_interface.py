@@ -145,7 +145,7 @@ class TerminalInterface:
         # Split into lines and display with reverse video formatting
         lines = keyboard_ascii.split('\n')
         for i, line in enumerate(lines):
-            if start_y + i < curses.LINES - 5:  # Leave space for status lines
+            if start_y + i < curses.LINES - 1:  # Leave just 1 line for safety
                 self._display_line_with_reverse(start_y + i, 0, line)
     
     def _display_line_with_reverse(self, y: int, x: int, line: str) -> None:
