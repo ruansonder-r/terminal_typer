@@ -1,262 +1,155 @@
-from typing import Dict, List, Set, Optional
+import json
+from typing import List, Set, Optional
+from wpm_calculator import WPMCalculator
 
 class KeyboardRenderer:
     """
-    Renders bracket-style ASCII art representations of split ergonomic keyboards.
-    Handles the visual layout and key highlighting.
+    Renders ASCII art representations of split ergonomic keyboards.
+    Supports key highlighting and WPM display integration.
     """
     
-    def __init__(self, visual_style: str = "bold"):
+    def __init__(self, visual_style: str = "reverse"):
         """
         Initialize the keyboard renderer.
         
         Args:
-            visual_style: Style for pressed key highlighting
-                - "bold": **key** (current style)
-                - "reverse": [key] with reverse video
-                - "brackets": <key> instead of [key]
-                - "symbols": [★key★] with symbols
-                - "exclamation": [!key!] with exclamation marks
-                - "hash": [#key#] with hash symbols
+            visual_style: Style for pressed key highlighting (only "reverse" supported)
         """
-        self.visual_style = visual_style
+        self.visual_style = "reverse"  # Only reverse video mode supported
+        self.pressed_keys: Set[str] = set()
+        self.wpm_calculator: Optional[WPMCalculator] = None
         
-        # Key name to display character mapping
+        # Key display mapping for ZMK key names to display characters
         self.key_display_map = {
             # Letters
-            'Q': 'Q', 'W': 'W', 'E': 'E', 'R': 'R', 'T': 'T', 'Y': 'Y', 'U': 'U', 'I': 'I', 'O': 'O', 'P': 'P',
-            'A': 'A', 'S': 'S', 'D': 'D', 'F': 'F', 'G': 'G', 'H': 'H', 'J': 'J', 'K': 'K', 'L': 'L',
-            'Z': 'Z', 'X': 'X', 'C': 'C', 'V': 'V', 'B': 'B', 'N': 'N', 'M': 'M',
+            'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 'E': 'E', 'F': 'F', 'G': 'G', 'H': 'H', 'I': 'I', 'J': 'J',
+            'K': 'K', 'L': 'L', 'M': 'M', 'N': 'N', 'O': 'O', 'P': 'P', 'Q': 'Q', 'R': 'R', 'S': 'S', 'T': 'T',
+            'U': 'U', 'V': 'V', 'W': 'W', 'X': 'X', 'Y': 'Y', 'Z': 'Z',
             
             # Numbers
-            'N1': '1', 'N2': '2', 'N3': '3', 'N4': '4', 'N5': '5', 'N6': '6', 'N7': '7', 'N8': '8', 'N9': '9', 'N0': '0',
+            'N0': '0', 'N1': '1', 'N2': '2', 'N3': '3', 'N4': '4', 'N5': '5', 'N6': '6', 'N7': '7', 'N8': '8', 'N9': '9',
             
             # Symbols
-            'EXCL': '!', 'AT': '@', 'HASH': '#', 'DLLR': '$', 'PRCNT': '%', 'CARET': '^', 'AMPS': '&', 'ASTRK': '*',
-            'LPAR': '(', 'RPAR': ')', 'MINUS': '-', 'EQUAL': '=', 'LBKT': '[', 'RBKT': ']', 'BSLH': '\\',
-            'LBRC': '{', 'RBRC': '}', 'PIPE': '|', 'TILDE': '~', 'GRAVE': '`', 'UNDER': '_', 'PLUS': '+',
-            'SEMI': ';', 'SQT': "'", 'COMMA': ',', 'DOT': '.', 'FSLH': '/',
+            'COMMA': ',', 'DOT': '.', 'SLASH': '/', 'SEMI': ';', 'QUOTE': "'", 'LBRC': '[', 'RBRC': ']', 'BSLH': '\\',
+            'EQUAL': '=', 'MINUS': '-', 'GRAVE': '`', 'TILDE': '~', 'EXCL': '!', 'AT': '@', 'HASH': '#', 'DLR': '$',
+            'PRCNT': '%', 'CIRC': '^', 'AMPS': '&', 'STAR': '*', 'LPAR': '(', 'RPAR': ')', 'UNDS': '_', 'PLUS': '+',
+            'LCBR': '{', 'RCBR': '}', 'PIPE': '|', 'LABK': '<', 'RABK': '>', 'QUES': '?', 'COLN': ':', 'DQUO': '"',
+            
+            # Modifiers
+            'LCTRL': 'CTL', 'RCTRL': 'CTL', 'LALT': 'ALT', 'RALT': 'ALT', 'LGUI': 'GUI', 'RGUI': 'GUI',
+            'LSHFT': 'SFT', 'RSHFT': 'SFT', 'LCTL': 'CTL', 'RCTL': 'CTL',
             
             # Special keys
-            'TAB': 'TAB', 'BSPC': 'BSP', 'RET': 'ENT', 'ESC': 'ESC', 'SPACE': 'SPC',
-            'LCTRL': 'CTL', 'LSHFT': 'SFT', 'LEFT_GUI': 'GUI', 'LGUI': 'GUI', 'RALT': 'ALT',
+            'SPACE': 'SPC', 'ENTER': 'ENT', 'ESCAPE': 'ESC', 'TAB': 'TAB', 'BACKSPACE': 'BSP', 'DELETE': 'DEL',
+            'RETURN': 'ENT', 'ESC': 'ESC', 'TAB': 'TAB', 'BSPC': 'BSP', 'DEL': 'DEL',
             
             # Layer keys
-            'mo(1)': 'LWR', 'mo(2)': 'RSE',
+            'mo(1)': 'LWR', 'mo(2)': 'RSE', 'mo(3)': 'L3', 'mo(4)': 'L4', 'mo(5)': 'L5',
+            'to(1)': 'LWR', 'to(2)': 'RSE', 'to(3)': 'L3', 'to(4)': 'L4', 'to(5)': 'L5',
+            'tg(1)': 'LWR', 'tg(2)': 'RSE', 'tg(3)': 'L3', 'tg(4)': 'L4', 'tg(5)': 'L5',
             
-            # Media keys
-            'C_PREV': 'PREV', 'C_PLAY_PAUSE': 'PLAY', 'C_NEXT': 'NEXT', 'C_VOLUME_UP': 'VOL+', 'C_VOL_DN': 'VOL-', 'C_MUTE': 'MUTE',
+            # Function keys
+            'F1': 'F1', 'F2': 'F2', 'F3': 'F3', 'F4': 'F4', 'F5': 'F5', 'F6': 'F6',
+            'F7': 'F7', 'F8': 'F8', 'F9': 'F9', 'F10': 'F10', 'F11': 'F11', 'F12': 'F12',
             
             # Navigation
-            'LEFT': 'LFT', 'DOWN': 'DWN', 'UP': 'UP', 'RIGHT': 'RGT', 'HOME': 'HOME', 'END': 'END',
-            'SCRL_LEFT': 'SL', 'SCRL_UP': 'SU', 'SCRL_RIGHT': 'SR', 'SCRL_DOWN': 'SD',
+            'UP': 'UP', 'DOWN': 'DN', 'LEFT': 'LT', 'RIGHT': 'RT', 'HOME': 'HM', 'END': 'END',
+            'PGUP': 'PU', 'PGDN': 'PD', 'INS': 'INS',
             
-            # Bluetooth
-            'BT_CLR': 'BTCLR', 'BT_SEL_0': 'BT1', 'BT_SEL_1': 'BT2', 'BT_SEL_2': 'BT3', 'BT_SEL_3': 'BT4', 'BT_SEL_4': 'BT5',
+            # Media keys
+            'MUTE': 'MUT', 'VOLU': 'V+', 'VOLD': 'V-', 'NEXT': 'NXT', 'PREV': 'PRV', 'PLAY': 'PLY', 'STOP': 'STP',
             
-            # Other
-            'DEL': 'DEL', 'trans': '   '  # Transparent keys show as empty
+            # Default for unknown keys
+            'DEFAULT': 'KEY'
         }
-        
-        # Currently pressed keys
-        self.pressed_keys: Set[str] = set()
-        
-        # WPM calculator (optional)
-        self.wpm_calculator = None
-    
-    def set_visual_style(self, style: str) -> None:
-        """
-        Set the visual style for pressed key highlighting.
-        
-        Args:
-            style: Visual style name
-        """
-        self.visual_style = style
-    
-    def _format_pressed_key(self, display: str) -> str:
-        """
-        Format a pressed key according to the current visual style.
-        
-        Args:
-            display: Key display text
-            
-        Returns:
-            Formatted key string
-        """
-        if self.visual_style == "bold":
-            return f"**[{display:^3}]**"
-        elif self.visual_style == "reverse":
-            return f"REV[{display:^3}]REV"  # Will be processed by terminal interface
-        elif self.visual_style == "brackets":
-            return f"<{display:^3}>"
-        elif self.visual_style == "symbols":
-            return f"[★{display:^3}★]"
-        elif self.visual_style == "exclamation":
-            return f"[!{display:^3}!]"
-        elif self.visual_style == "hash":
-            return f"[#{display:^3}#]"
-        elif self.visual_style == "arrows":
-            return f"[▶{display:^3}◀]"
-        elif self.visual_style == "stars":
-            return f"[*{display:^3}*]"
-        else:
-            return f"**[{display:^3}]**"  # Default to bold
-    
-    def _format_normal_key(self, display: str) -> str:
-        """
-        Format a normal (not pressed) key.
-        
-        Args:
-            display: Key display text
-            
-        Returns:
-            Formatted key string
-        """
-        return f"[{display:^3}]"
-    
-    def set_wpm_calculator(self, wpm_calculator) -> None:
-        """
-        Set the WPM calculator for display.
-        
-        Args:
-            wpm_calculator: WPMCalculator instance
-        """
-        self.wpm_calculator = wpm_calculator
-    
-    def get_key_display(self, key_name: str) -> str:
-        """
-        Get the display character for a key name.
-        
-        Args:
-            key_name: The ZMK key name
-            
-        Returns:
-            Display character for the key
-        """
-        return self.key_display_map.get(key_name, key_name[:3].upper())
     
     def set_pressed_keys(self, pressed_keys: Set[str]) -> None:
-        """
-        Set the currently pressed keys for highlighting.
-        
-        Args:
-            pressed_keys: Set of currently pressed key names
-        """
+        """Set the currently pressed keys."""
         self.pressed_keys = pressed_keys
+    
+    def set_wpm_calculator(self, wpm_calculator: WPMCalculator) -> None:
+        """Set the WPM calculator for display integration."""
+        self.wpm_calculator = wpm_calculator
+    
+    def get_key_display(self, key: str) -> str:
+        """Get the display character for a key."""
+        return self.key_display_map.get(key, key[:3].upper())
     
     def render_keyboard(self, layer_keys: List[List[str]], layer_name: str = "") -> str:
         """
-        Render the keyboard layout as bracket-style ASCII art.
+        Render the keyboard layout as ASCII art.
         
         Args:
-            layer_keys: List of key rows, where each row is a list of key names
-            layer_name: Name of the layer being rendered
+            layer_keys: List of key rows for the current layer
+            layer_name: Name of the current layer (unused, kept for compatibility)
             
         Returns:
             ASCII art representation of the keyboard
         """
-        if not layer_keys:
+        if not layer_keys or len(layer_keys) < 3:
             return "No keys to render"
         
-        # Split keyboard layout - left and right halves
+        lines = []
+        
+        # Split into left and right halves (assuming 6 columns per half)
         left_half = []
         right_half = []
         
         for row in layer_keys:
-            # Split each row into left and right halves
-            mid_point = len(row) // 2
-            left_row = row[:mid_point]
-            right_row = row[mid_point:]
-            
-            left_half.append(left_row)
-            right_half.append(right_row)
+            if len(row) >= 12:  # Full row with both halves
+                left_half.append(row[:6])
+                right_half.append(row[6:12])
+            else:  # Partial row, pad with empty strings
+                left_pad = [''] * (6 - len(row))
+                left_half.append(row + left_pad)
+                right_half.append([''] * 6)
         
-        # Build the layout
-        lines = []
-        
-        # Render each row (excluding thumb row which is handled separately)
+        # Render main rows (excluding thumb row)
         for i, (left_row, right_row) in enumerate(zip(left_half[:-1], right_half[:-1])):
-            # Build left half
-            left_keys = []
-            for key in left_row:
-                display = self.get_key_display(key)
-                if key in self.pressed_keys:
-                    left_keys.append(self._format_pressed_key(display))
-                else:
-                    left_keys.append(self._format_normal_key(display))
+            left_keys = [self._format_pressed_key(self.get_key_display(key)) if key in self.pressed_keys else self._format_normal_key(self.get_key_display(key)) for key in left_row]
+            right_keys = [self._format_pressed_key(self.get_key_display(key)) if key in self.pressed_keys else self._format_normal_key(self.get_key_display(key)) for key in right_row]
             
-            # Build right half
-            right_keys = []
-            for key in right_row:
-                display = self.get_key_display(key)
-                if key in self.pressed_keys:
-                    right_keys.append(self._format_pressed_key(display))
-                else:
-                    right_keys.append(self._format_normal_key(display))
-            
-            # Combine with proper spacing (4 tabs = 16 spaces)
             left_str = " ".join(left_keys)
             right_str = " ".join(right_keys)
             
-            # Add indentation for visual effect (mirror staggering for ergonomic layout)
-            left_indent = " " * (i * 2)  # Left half indents progressively to the right
-            right_indent = " " * ((2 - i) * 2)  # Right half indents progressively to the left
+            left_indent = " " * (i * 2)
+            right_indent = " " * ((2 - i) * 2)
             
-            # Add WPM display in the center if available
-            if self.wpm_calculator and i == 1:  # Show WPM on the second row (middle row)
+            if self.wpm_calculator and i == 1:
                 wpm_display = self.wpm_calculator.get_wpm_display()
                 center_line = f"{left_indent}{left_str} {wpm_display} {right_indent}{right_str}"
             else:
-                # For rows without WPM, ensure proper alignment with consistent spacing
-                # Calculate spacing to align keys properly
-                base_spacing = "                "  # 16 spaces between halves
-                # Adjust right half positioning for better alignment
-                adjusted_right_indent = " " * max(0, (2 - i) * 2)  # Ensure no negative indentation
+                base_spacing = "                "
+                adjusted_right_indent = " " * max(0, (2 - i) * 2)
                 center_line = f"{left_indent}{left_str}{base_spacing}{adjusted_right_indent}{right_str}"
             
             lines.append(center_line)
         
-        # Add thumb keys row
+        # Render thumb row (last row)
         if len(layer_keys) >= 4:
-            thumb_row = layer_keys[3]
-            if len(thumb_row) >= 4:
-                # Extract thumb keys (typically the outer keys)
-                left_thumb = thumb_row[0] if len(thumb_row) > 0 else ""
-                left_gui = thumb_row[1] if len(thumb_row) > 1 else ""
-                right_gui = thumb_row[-2] if len(thumb_row) > 2 else ""
-                right_thumb = thumb_row[-1] if len(thumb_row) > 3 else ""
+            thumb_row = layer_keys[-1]
+            if len(thumb_row) >= 6:
+                left_thumb = thumb_row[:3]
+                right_thumb = thumb_row[3:6]
                 
-                # Render thumb keys
-                left_thumb_display = self.get_key_display(left_thumb)
-                left_gui_display = self.get_key_display(left_gui)
-                right_gui_display = self.get_key_display(right_gui)
-                right_thumb_display = self.get_key_display(right_thumb)
+                left_thumb_keys = [self._format_pressed_key(self.get_key_display(key)) if key in self.pressed_keys else self._format_normal_key(self.get_key_display(key)) for key in left_thumb]
+                right_thumb_keys = [self._format_pressed_key(self.get_key_display(key)) if key in self.pressed_keys else self._format_normal_key(self.get_key_display(key)) for key in right_thumb]
                 
-                # Highlight if pressed
-                if left_thumb in self.pressed_keys:
-                    left_thumb_str = self._format_pressed_key(left_thumb_display)
-                else:
-                    left_thumb_str = self._format_normal_key(left_thumb_display)
+                left_thumb_str = " ".join(left_thumb_keys)
+                right_thumb_str = " ".join(right_thumb_keys)
                 
-                if left_gui in self.pressed_keys:
-                    left_gui_str = self._format_pressed_key(left_gui_display)
-                else:
-                    left_gui_str = self._format_normal_key(left_gui_display)
-                
-                if right_gui in self.pressed_keys:
-                    right_gui_str = self._format_pressed_key(right_gui_display)
-                else:
-                    right_gui_str = self._format_normal_key(right_gui_display)
-                
-                if right_thumb in self.pressed_keys:
-                    right_thumb_str = self._format_pressed_key(right_thumb_display)
-                else:
-                    right_thumb_str = self._format_normal_key(right_thumb_display)
-                
-                # Thumb row with proper spacing (4 tabs = 16 spaces)
-                space_str = self._format_pressed_key('SPC') + ' ' if 'SPACE' in self.pressed_keys else self._format_normal_key('SPC') + ' '
-                ent_str = self._format_pressed_key('ENT') + ' ' if 'RET' in self.pressed_keys else self._format_normal_key('ENT') + ' '
-                thumb_line = f"             {left_gui_str}{left_thumb_str}{space_str}                {ent_str}{right_gui_str}{right_thumb_str}"
+                # Center the thumb row
+                thumb_indent = " " * 6
+                thumb_spacing = "        "
+                thumb_line = f"{thumb_indent}{left_thumb_str}{thumb_spacing}{right_thumb_str}"
                 lines.append(thumb_line)
         
-        return "\n".join(lines) 
+        return "\n".join(lines)
+    
+    def _format_pressed_key(self, display: str) -> str:
+        """Format a pressed key with reverse video highlighting."""
+        return f"REV[{display:^3}]REV"
+    
+    def _format_normal_key(self, display: str) -> str:
+        """Format a normal key."""
+        return f"[{display:^3}]" 

@@ -13,21 +13,16 @@ class TerminalInterface:
     Provides dynamic display of keyboard layout with keypress highlighting.
     """
     
-    def __init__(self, keymap_file: str, visual_style: str = "bold"):
+    def __init__(self, keymap_file: str, visual_style: str = "reverse"):
         """
         Initialize the terminal interface.
         
         Args:
             keymap_file: Path to the ZMK keymap JSON file
-            visual_style: Initial visual style for pressed keys
+            visual_style: Visual style for pressed keys (only "reverse" supported)
         """
         self.keymap_file = keymap_file
-        self.visual_style = visual_style
-        self.visual_styles = [
-            "bold", "reverse", "brackets", "symbols", 
-            "exclamation", "hash", "arrows", "stars"
-        ]
-        self.current_style_index = self.visual_styles.index(visual_style) if visual_style in self.visual_styles else 0
+        self.visual_style = "reverse"  # Only reverse video mode supported
         
         # Initialize components
         self.parser = None
@@ -50,8 +45,8 @@ class TerminalInterface:
         # Initialize parser
         self.parser = KeymapParser(self.keymap_file)
         
-        # Initialize renderer with current visual style
-        self.renderer = KeyboardRenderer(visual_style=self.visual_style)
+        # Initialize renderer with reverse video style
+        self.renderer = KeyboardRenderer(visual_style="reverse")
         
         # Initialize WPM calculator
         self.wpm_calculator = WPMCalculator()
@@ -113,19 +108,6 @@ class TerminalInterface:
         # Check for Ctrl+C to exit
         if 'LCTRL' in pressed_keys and 'C' in pressed_keys:
             self.is_running = False
-        
-        # Check for F4 to cycle visual styles
-        if 'F4' in pressed_keys:
-            self._cycle_visual_style()
-    
-    def _cycle_visual_style(self) -> None:
-        """Cycle through available visual styles."""
-        self.current_style_index = (self.current_style_index + 1) % len(self.visual_styles)
-        self.visual_style = self.visual_styles[self.current_style_index]
-        
-        # Update renderer with new style
-        if self.renderer:
-            self.renderer.set_visual_style(self.visual_style)
     
     def _update_display(self) -> None:
         """Update the terminal display."""
@@ -160,15 +142,15 @@ class TerminalInterface:
         # Render keyboard
         keyboard_ascii = self.renderer.render_keyboard(layer_keys, self.current_layer)
         
-        # Split into lines and display with bold formatting
+        # Split into lines and display with reverse video formatting
         lines = keyboard_ascii.split('\n')
         for i, line in enumerate(lines):
             if start_y + i < curses.LINES - 5:  # Leave space for status lines
-                self._display_line_with_bold(start_y + i, 0, line)
+                self._display_line_with_reverse(start_y + i, 0, line)
     
-    def _display_line_with_bold(self, y: int, x: int, line: str) -> None:
+    def _display_line_with_reverse(self, y: int, x: int, line: str) -> None:
         """
-        Display a line with formatting for pressed keys.
+        Display a line with reverse video formatting for pressed keys.
         
         Args:
             y: Y position on screen
@@ -178,31 +160,13 @@ class TerminalInterface:
         if not self.screen:
             return
         
-        # Handle different visual styles
-        if "**" in line:
-            # Bold style: **key**
-            self._display_bold_style(y, x, line)
-        elif "REV" in line:
+        # Handle reverse video formatting
+        if "REV" in line:
             # Reverse video style: REV[key]REV
             self._display_reverse_style(y, x, line)
         else:
-            # Other styles (brackets, symbols, etc.) - display as normal
+            # Normal text
             self.screen.addstr(y, x, line)
-    
-    def _display_bold_style(self, y: int, x: int, line: str) -> None:
-        """Display line with bold formatting for ** markers."""
-        # Split the line by ** markers
-        parts = line.split('**')
-        current_x = x
-        
-        for i, part in enumerate(parts):
-            if part:  # Skip empty parts
-                # Apply bold formatting for odd-indexed parts (between ** markers)
-                if i % 2 == 1:  # This part should be bold
-                    self.screen.addstr(y, current_x, part, curses.A_BOLD)
-                else:  # This part should be normal
-                    self.screen.addstr(y, current_x, part)
-                current_x += len(part)
     
     def _display_reverse_style(self, y: int, x: int, line: str) -> None:
         """Display line with reverse video formatting for REV markers."""

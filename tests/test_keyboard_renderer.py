@@ -24,14 +24,15 @@ class TestKeyboardRenderer(unittest.TestCase):
         
         # Test layer keys
         self.test_layer_keys = [
-            ["TAB", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "BSPC"],
-            ["LCTRL", "A", "S", "D", "F", "G", "H", "J", "K", "L", "SEMI", "SQT"],
-            ["LSHFT", "Z", "X", "C", "V", "B", "N", "M", "COMMA", "DOT", "FSLH", "ESC"],
-            ["mo(1)", "LEFT_GUI", "SPACE", "RET", "LCTRL", "mo(2)"]
+            ["TAB", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "BSP"],
+            ["CTL", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'"],
+            ["SFT", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "ESC"],
+            ["LWR", "LEF", "SPC", "RET", "CTL", "RSE"]
         ]
     
     def test_initial_state(self):
         """Test initial state of renderer."""
+        self.assertEqual(self.renderer.visual_style, "reverse")
         self.assertEqual(len(self.renderer.pressed_keys), 0)
         self.assertIsNone(self.renderer.wpm_calculator)
     
@@ -40,6 +41,7 @@ class TestKeyboardRenderer(unittest.TestCase):
         # Test letters
         self.assertEqual(self.renderer.get_key_display("Q"), "Q")
         self.assertEqual(self.renderer.get_key_display("A"), "A")
+        self.assertEqual(self.renderer.get_key_display("Z"), "Z")
         
         # Test numbers
         self.assertEqual(self.renderer.get_key_display("N1"), "1")
@@ -78,20 +80,20 @@ class TestKeyboardRenderer(unittest.TestCase):
     
     def test_render_keyboard_with_pressed_keys(self):
         """Test keyboard rendering with pressed keys."""
-        pressed_keys = {"Q", "A", "Z", "SPACE"}
+        pressed_keys = {"Q", "A", "Z", "SPC"}
         self.renderer.set_pressed_keys(pressed_keys)
         
         result = self.renderer.render_keyboard(self.test_layer_keys)
         
-        # Should show bold highlighting for pressed keys
-        self.assertIn("**[ Q ]**", result)
-        self.assertIn("**[ A ]**", result)
-        self.assertIn("**[ Z ]**", result)
-        self.assertIn("**[SPC]**", result)
+        # Should show reverse video highlighting for pressed keys
+        self.assertIn("REV[ Q ]REV", result)
+        self.assertIn("REV[ A ]REV", result)
+        self.assertIn("REV[ Z ]REV", result)
+        self.assertIn("REV[SPC]REV", result)
         
-        # Non-pressed keys should not be bold
+        # Non-pressed keys should not be reverse video
         self.assertIn("[ W ]", result)
-        self.assertNotIn("**[ W ]**", result)
+        self.assertNotIn("REV[ W ]REV", result)
     
     def test_render_keyboard_with_wpm(self):
         """Test keyboard rendering with WPM calculator."""
@@ -135,8 +137,7 @@ class TestKeyboardRenderer(unittest.TestCase):
         
         # Should contain thumb row elements
         self.assertIn("[SPC]", result)
-        self.assertIn("[ENT]", result)
-        self.assertIn("[GUI]", result)
+        self.assertIn("[RET]", result)
         self.assertIn("[LWR]", result)
         self.assertIn("[RSE]", result)
 

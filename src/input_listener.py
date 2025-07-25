@@ -1,90 +1,92 @@
 from pynput import keyboard
-from typing import Set, Callable, Dict, Optional
+from typing import Set, Callable, Optional
 import threading
 import time
+from keymap_parser import KeymapParser
+from wpm_calculator import WPMCalculator
 
 class InputListener:
     """
-    Captures global keyboard input and maps physical keypresses to ZMK key names.
-    Handles layer switching and provides real-time key state updates.
+    Global keyboard input listener for capturing keypresses.
+    Maps physical keys to ZMK key names and manages layer state.
     """
     
     def __init__(self):
         """Initialize the input listener."""
-        self.pressed_keys: Set[str] = set()
-        self.layer_keys: Set[str] = set()  # Currently held layer keys
-        self.current_layer: str = "default_layer"
-        self.layer_stack: list = ["default_layer"]  # Layer history for proper switching
-        
-        # WPM calculator (optional)
-        self.wpm_calculator = None
-        
-        # Keymap parser for automatic layer detection (optional)
-        self.keymap_parser = None
-        
-        # Physical key to ZMK key mapping
+        # Physical key to ZMK key name mapping
         self.key_mapping = {
             # Letters
-            'q': 'Q', 'w': 'W', 'e': 'E', 'r': 'R', 't': 'T', 'y': 'Y', 'u': 'U', 'i': 'I', 'o': 'O', 'p': 'P',
-            'a': 'A', 's': 'S', 'd': 'D', 'f': 'F', 'g': 'G', 'h': 'H', 'j': 'J', 'k': 'K', 'l': 'L',
-            'z': 'Z', 'x': 'X', 'c': 'C', 'v': 'V', 'b': 'B', 'n': 'N', 'm': 'M',
+            'a': 'A', 'b': 'B', 'c': 'C', 'd': 'D', 'e': 'E', 'f': 'F', 'g': 'G', 'h': 'H', 'i': 'I', 'j': 'J',
+            'k': 'K', 'l': 'L', 'm': 'M', 'n': 'N', 'o': 'O', 'p': 'P', 'q': 'Q', 'r': 'R', 's': 'S', 't': 'T',
+            'u': 'U', 'v': 'V', 'w': 'W', 'x': 'X', 'y': 'Y', 'z': 'Z',
             
             # Numbers
-            '1': 'N1', '2': 'N2', '3': 'N3', '4': 'N4', '5': 'N5', '6': 'N6', '7': 'N7', '8': 'N8', '9': 'N9', '0': 'N0',
+            '0': 'N0', '1': 'N1', '2': 'N2', '3': 'N3', '4': 'N4', '5': 'N5', '6': 'N6', '7': 'N7', '8': 'N8', '9': 'N9',
             
             # Symbols
-            '!': 'EXCL', '@': 'AT', '#': 'HASH', '$': 'DLLR', '%': 'PRCNT', '^': 'CARET', '&': 'AMPS', '*': 'ASTRK',
-            '(': 'LPAR', ')': 'RPAR', '-': 'MINUS', '=': 'EQUAL', '[': 'LBKT', ']': 'RBKT', '\\': 'BSLH',
-            '{': 'LBRC', '}': 'RBRC', '|': 'PIPE', '~': 'TILDE', '`': 'GRAVE', '_': 'UNDER', '+': 'PLUS',
-            ';': 'SEMI', "'": 'SQT', ',': 'COMMA', '.': 'DOT', '/': 'FSLH',
+            ',': 'COMMA', '.': 'DOT', '/': 'SLASH', ';': 'SEMI', "'": 'QUOTE', '[': 'LBRC', ']': 'RBRC', '\\': 'BSLH',
+            '=': 'EQUAL', '-': 'MINUS', '`': 'GRAVE', '~': 'TILDE', '!': 'EXCL', '@': 'AT', '#': 'HASH', '$': 'DLR',
+            '%': 'PRCNT', '^': 'CIRC', '&': 'AMPS', '*': 'STAR', '(': 'LPAR', ')': 'RPAR', '_': 'UNDS', '+': 'PLUS',
+            '{': 'LCBR', '}': 'RCBR', '|': 'PIPE', '<': 'LABK', '>': 'RABK', '?': 'QUES', ':': 'COLN', '"': 'DQUO',
+            
+            # Modifiers
+            'ctrl_l': 'LCTRL', 'ctrl_r': 'RCTRL', 'alt_l': 'LALT', 'alt_r': 'RALT', 'cmd': 'LGUI', 'cmd_r': 'RGUI',
+            'shift': 'LSHFT', 'shift_r': 'RSHFT', 'ctrl': 'LCTRL', 'ctrl_r': 'RCTRL',
             
             # Special keys
-            'tab': 'TAB', 'backspace': 'BSPC', 'enter': 'RET', 'esc': 'ESC', 'space': 'SPACE',
-            'ctrl_l': 'LCTRL', 'ctrl_r': 'LCTRL', 'shift': 'LSHFT', 'shift_l': 'LSHFT', 'shift_r': 'LSHFT',
-            'cmd_l': 'LEFT_GUI', 'cmd_r': 'LEFT_GUI', 'alt_l': 'RALT', 'alt_r': 'RALT',
+            'space': 'SPACE', 'enter': 'ENTER', 'esc': 'ESCAPE', 'tab': 'TAB', 'backspace': 'BACKSPACE', 'delete': 'DELETE',
+            'return': 'ENTER', 'escape': 'ESCAPE', 'tab': 'TAB', 'backspace': 'BACKSPACE', 'delete': 'DELETE',
             
-            # Layer keys (these will be handled specially)
-            'f1': 'mo(1)', 'f2': 'mo(2)', 'f4': 'F4',  # Using F1/F2 as layer keys, F4 for visual style cycling
-            
-            # Media keys
-            'media_previous': 'C_PREV', 'media_play_pause': 'C_PLAY_PAUSE', 'media_next': 'C_NEXT',
-            'media_volume_up': 'C_VOLUME_UP', 'media_volume_down': 'C_VOL_DN', 'media_volume_mute': 'C_MUTE',
+            # Function keys
+            'f1': 'F1', 'f2': 'F2', 'f3': 'F3', 'f5': 'F5', 'f6': 'F6',
+            'f7': 'F7', 'f8': 'F8', 'f9': 'F9', 'f10': 'F10', 'f11': 'F11', 'f12': 'F12',
             
             # Navigation
-            'left': 'LEFT', 'down': 'DOWN', 'up': 'UP', 'right': 'RIGHT', 'home': 'HOME', 'end': 'END',
-            'page_up': 'SCRL_UP', 'page_down': 'SCRL_DOWN',
+            'up': 'UP', 'down': 'DOWN', 'left': 'LEFT', 'right': 'RIGHT', 'home': 'HOME', 'end': 'END',
+            'page_up': 'PGUP', 'page_down': 'PGDN', 'insert': 'INS',
             
-            # Other
-            'delete': 'DEL'
+            # Media keys
+            'media_volume_mute': 'MUTE', 'media_volume_up': 'VOLU', 'media_volume_down': 'VOLD',
+            'media_next': 'NEXT', 'media_previous': 'PREV', 'media_play_pause': 'PLAY', 'media_stop': 'STOP',
+            
+            # Layer keys (using F1/F2 as layer keys)
+            'f1': 'mo(1)', 'f2': 'mo(2)',  # Using F1/F2 as layer keys
         }
         
-        # Reverse mapping for layer keys
-        self.layer_key_mapping = {
-            'mo(1)': 'lower_layer',
-            'mo(2)': 'raise_layer'
+        # Currently pressed keys
+        self.pressed_keys: Set[str] = set()
+        
+        # Layer state
+        self.current_layer = "default_layer"
+        self.layer_keys = {
+            "default_layer": set(),
+            "lower_layer": set(),
+            "raise_layer": set()
         }
         
-        # Callback for key state changes
-        self.on_key_change: Optional[Callable[[Set[str], str], None]] = None
+        # Callback for key changes
+        self.key_change_callback: Optional[Callable[[Set[str], str], None]] = None
         
-        # Listener thread
+        # Listener instance
         self.listener: Optional[keyboard.Listener] = None
-        self.is_listening = False
         
-        # Error tracking
-        self.unsupported_keys: Set[str] = set()
+        # WPM calculator
+        self.wpm_calculator: Optional[WPMCalculator] = None
+        
+        # Keymap parser for automatic layer detection
+        self.keymap_parser: Optional[KeymapParser] = None
     
-    def start_listening(self, on_key_change: Callable[[Set[str], str], None]) -> None:
-        """
-        Start listening for keyboard input.
-        
-        Args:
-            on_key_change: Callback function called when key state changes
-        """
-        self.on_key_change = on_key_change
-        self.is_listening = True
-        
-        # Start the listener
+    def set_wpm_calculator(self, wpm_calculator: WPMCalculator) -> None:
+        """Set the WPM calculator for keystroke tracking."""
+        self.wpm_calculator = wpm_calculator
+    
+    def set_keymap_parser(self, keymap_parser: KeymapParser) -> None:
+        """Set the keymap parser for automatic layer detection."""
+        self.keymap_parser = keymap_parser
+    
+    def start_listening(self, callback: Callable[[Set[str], str], None]) -> None:
+        """Start listening for keyboard input."""
+        self.key_change_callback = callback
         self.listener = keyboard.Listener(
             on_press=self._on_press,
             on_release=self._on_release
@@ -93,7 +95,6 @@ class InputListener:
     
     def stop_listening(self) -> None:
         """Stop listening for keyboard input."""
-        self.is_listening = False
         if self.listener:
             self.listener.stop()
             self.listener = None
@@ -101,65 +102,61 @@ class InputListener:
     def _on_press(self, key) -> None:
         """Handle key press events."""
         try:
-            # Convert key to string representation
+            # Convert key to string
             key_str = self._key_to_string(key)
             if not key_str:
                 return
             
-            # Track keystroke for WPM calculation (only for printable characters)
-            if self.wpm_calculator and self._is_printable_key(key_str):
-                self.wpm_calculator.add_keystroke()
+            # Map to ZMK key name
+            zmk_key = self.key_mapping.get(key_str.lower(), key_str.upper())
             
-            # Check if it's a layer key
-            if key_str in self.layer_key_mapping:
-                self._handle_layer_key_press(key_str)
-            else:
-                # Regular key press
-                zmk_key = self.key_mapping.get(key_str.lower())
-                if zmk_key:
-                    # Check if this key exists in the current layer
-                    current_layer_keys = self._get_current_layer_keys()
-                    if zmk_key not in current_layer_keys:
-                        # Key not in current layer, try to find which layer contains it
-                        target_layer = self._find_layer_for_key(zmk_key)
-                        if target_layer and target_layer != self.current_layer:
-                            # Switch to the layer that contains this key
-                            self.current_layer = target_layer
-                            self.layer_stack.append(target_layer)
-                    
-                    self.pressed_keys.add(zmk_key)
-                    self._notify_key_change()
-                else:
-                    # Unsupported key
-                    self.unsupported_keys.add(key_str)
-                    self._notify_key_change()
-                    
+            # Add to pressed keys
+            if zmk_key not in self.pressed_keys:
+                self.pressed_keys.add(zmk_key)
+                
+                # Track keystroke for WPM calculation if printable
+                if self.wpm_calculator and self._is_printable_key(key_str):
+                    self.wpm_calculator.add_keystroke()
+                
+                # Handle layer key press
+                self._handle_layer_key_press(zmk_key)
+                
+                # Check for automatic layer switching
+                if self.keymap_parser:
+                    self._check_automatic_layer_switch(zmk_key)
+                
+                # Notify callback
+                self._notify_key_change()
+                
         except Exception as e:
             print(f"Error handling key press: {e}")
     
     def _on_release(self, key) -> None:
         """Handle key release events."""
         try:
-            # Convert key to string representation
+            # Convert key to string
             key_str = self._key_to_string(key)
             if not key_str:
                 return
             
-            # Check if it's a layer key
-            if key_str in self.layer_key_mapping:
-                self._handle_layer_key_release(key_str)
-            else:
-                # Regular key release
-                zmk_key = self.key_mapping.get(key_str.lower())
-                if zmk_key and zmk_key in self.pressed_keys:
-                    self.pressed_keys.remove(zmk_key)
-                    self._notify_key_change()
-                    
+            # Map to ZMK key name
+            zmk_key = self.key_mapping.get(key_str.lower(), key_str.upper())
+            
+            # Remove from pressed keys
+            if zmk_key in self.pressed_keys:
+                self.pressed_keys.remove(zmk_key)
+                
+                # Handle layer key release
+                self._handle_layer_key_release(zmk_key)
+                
+                # Notify callback
+                self._notify_key_change()
+                
         except Exception as e:
             print(f"Error handling key release: {e}")
     
     def _key_to_string(self, key) -> Optional[str]:
-        """Convert pynput key object to string representation."""
+        """Convert pynput key to string."""
         if hasattr(key, 'char') and key.char:
             return key.char
         elif hasattr(key, 'name'):
@@ -167,148 +164,58 @@ class InputListener:
         else:
             return None
     
-    def _handle_layer_key_press(self, key_str: str) -> None:
-        """Handle layer key press (temporary layer switching)."""
-        zmk_key = self.key_mapping.get(key_str.lower())
-        if zmk_key and zmk_key in self.layer_key_mapping:
-            target_layer = self.layer_key_mapping[zmk_key]
-            
-            # Add to layer keys and switch layer
-            self.layer_keys.add(zmk_key)
-            self.layer_stack.append(target_layer)
-            self.current_layer = target_layer
-            
-            # Add the layer key to pressed keys for highlighting
-            self.pressed_keys.add(zmk_key)
-            self._notify_key_change()
+    def _is_printable_key(self, key_str: str) -> bool:
+        """Check if a key is printable (for WPM calculation)."""
+        return len(key_str) == 1 and key_str.isprintable() and not key_str.isspace()
     
-    def _handle_layer_key_release(self, key_str: str) -> None:
-        """Handle layer key release (return to previous layer)."""
-        zmk_key = self.key_mapping.get(key_str.lower())
-        if zmk_key and zmk_key in self.layer_key_mapping:
-            # Remove from layer keys
-            self.layer_keys.discard(zmk_key)
-            
-            # Return to previous layer
-            if len(self.layer_stack) > 1:
-                self.layer_stack.pop()
-                self.current_layer = self.layer_stack[-1]
-            
-            # Remove the layer key from pressed keys
-            self.pressed_keys.discard(zmk_key)
-            self._notify_key_change()
+    def _handle_layer_key_press(self, zmk_key: str) -> None:
+        """Handle layer key press events."""
+        if zmk_key == 'mo(1)':
+            self.current_layer = "lower_layer"
+        elif zmk_key == 'mo(2)':
+            self.current_layer = "raise_layer"
     
-    def _notify_key_change(self) -> None:
-        """Notify callback of key state change."""
-        if self.on_key_change:
-            self.on_key_change(self.pressed_keys, self.current_layer)
+    def _handle_layer_key_release(self, zmk_key: str) -> None:
+        """Handle layer key release events."""
+        if zmk_key in ['mo(1)', 'mo(2)']:
+            self.current_layer = "default_layer"
     
-    def get_pressed_keys(self) -> Set[str]:
-        """Get currently pressed keys."""
-        return self.pressed_keys.copy()
-    
-    def get_current_layer(self) -> str:
-        """Get current active layer."""
-        return self.current_layer
-    
-    def get_unsupported_keys(self) -> Set[str]:
-        """Get set of unsupported keys that were pressed."""
-        return self.unsupported_keys.copy()
-    
-    def clear_unsupported_keys(self) -> None:
-        """Clear the list of unsupported keys."""
-        self.unsupported_keys.clear() 
-
-    def set_wpm_calculator(self, wpm_calculator) -> None:
-        """
-        Set the WPM calculator for keystroke tracking.
+    def _check_automatic_layer_switch(self, zmk_key: str) -> None:
+        """Check if we need to automatically switch layers based on pressed key."""
+        if not self.keymap_parser:
+            return
         
-        Args:
-            wpm_calculator: WPMCalculator instance
-        """
-        self.wpm_calculator = wpm_calculator
-    
-    def set_keymap_parser(self, keymap_parser) -> None:
-        """
-        Set the keymap parser for automatic layer detection.
+        # Get current layer keys
+        current_layer_keys = self._get_current_layer_keys()
         
-        Args:
-            keymap_parser: KeymapParser instance
-        """
-        self.keymap_parser = keymap_parser
+        # If the pressed key is not in the current layer, find which layer contains it
+        if zmk_key not in current_layer_keys:
+            target_layer = self._find_layer_for_key(zmk_key)
+            if target_layer and target_layer != self.current_layer:
+                self.current_layer = target_layer
     
     def _find_layer_for_key(self, zmk_key: str) -> Optional[str]:
-        """
-        Find which layer contains the specified ZMK key.
-        
-        Args:
-            zmk_key: The ZMK key name to search for
-            
-        Returns:
-            Layer name if found, None otherwise
-        """
+        """Find which layer contains a specific key."""
         if not self.keymap_parser:
             return None
         
-        # Search through all available layers
-        available_layers = ["default_layer", "lower_layer", "raise_layer"]
+        layer_names = self.keymap_parser.get_layer_names()
         
-        for layer_name in available_layers:
+        for layer_name in layer_names:
             layer_keys = self.keymap_parser.get_layer_keys(layer_name)
             if layer_keys:
-                # Flatten the layer keys into a single list for searching
-                all_keys_in_layer = []
+                # Flatten the layer keys into a set
+                all_keys = set()
                 for row in layer_keys:
-                    all_keys_in_layer.extend(row)
+                    all_keys.update(row)
                 
-                if zmk_key in all_keys_in_layer:
+                if zmk_key in all_keys:
                     return layer_name
         
         return None
-
-    def _is_printable_key(self, key_str: str) -> bool:
-        """Check if a key string represents a printable character."""
-        printable_chars = set('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?`~\'"\\/')
-        return key_str in printable_chars
     
-    def _on_press_simulation(self, zmk_key: str) -> None:
-        """
-        Simulate a key press for testing purposes.
-        
-        Args:
-            zmk_key: The ZMK key name to simulate
-        """
-        # Check if this key exists in the current layer
-        current_layer_keys = self._get_current_layer_keys()
-        if zmk_key not in current_layer_keys:
-            # Key not in current layer, try to find which layer contains it
-            target_layer = self._find_layer_for_key(zmk_key)
-            if target_layer and target_layer != self.current_layer:
-                # Switch to the layer that contains this key
-                self.current_layer = target_layer
-                self.layer_stack.append(target_layer)
-        
-        self.pressed_keys.add(zmk_key)
-        self._notify_key_change()
-    
-    def _on_release_simulation(self, zmk_key: str) -> None:
-        """
-        Simulate a key release for testing purposes.
-        
-        Args:
-            zmk_key: The ZMK key name to simulate
-        """
-        if zmk_key in self.pressed_keys:
-            self.pressed_keys.remove(zmk_key)
-            self._notify_key_change()
-
     def _get_current_layer_keys(self) -> Set[str]:
-        """
-        Get all keys in the current layer.
-        
-        Returns:
-            Set of all ZMK key names in the current layer
-        """
+        """Get all keys from the current layer."""
         if not self.keymap_parser:
             return set()
         
@@ -316,9 +223,35 @@ class InputListener:
         if not layer_keys:
             return set()
         
-        # Flatten the layer keys into a single set
+        # Flatten the layer keys into a set
         all_keys = set()
         for row in layer_keys:
             all_keys.update(row)
         
-        return all_keys 
+        return all_keys
+    
+    def _notify_key_change(self) -> None:
+        """Notify the callback of key state changes."""
+        if self.key_change_callback:
+            self.key_change_callback(self.pressed_keys.copy(), self.current_layer)
+    
+    # Simulation methods for testing
+    def _on_press_simulation(self, key_str: str) -> None:
+        """Simulate a key press for testing."""
+        zmk_key = self.key_mapping.get(key_str.lower(), key_str.upper())
+        if zmk_key not in self.pressed_keys:
+            self.pressed_keys.add(zmk_key)
+            if self.wpm_calculator and self._is_printable_key(key_str):
+                self.wpm_calculator.add_keystroke()
+            self._handle_layer_key_press(zmk_key)
+            if self.keymap_parser:
+                self._check_automatic_layer_switch(zmk_key)
+            self._notify_key_change()
+    
+    def _on_release_simulation(self, key_str: str) -> None:
+        """Simulate a key release for testing."""
+        zmk_key = self.key_mapping.get(key_str.lower(), key_str.upper())
+        if zmk_key in self.pressed_keys:
+            self.pressed_keys.remove(zmk_key)
+            self._handle_layer_key_release(zmk_key)
+            self._notify_key_change() 

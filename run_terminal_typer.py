@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Terminal Typer - Main launcher script.
+Terminal Typer - Real-time keyboard visualization tool for split ergonomic keyboards.
 """
 
 import sys
@@ -12,36 +12,33 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 from terminal_interface import TerminalInterface
 
 def main():
-    """Main entry point."""
+    """Main entry point for the terminal typer application."""
     print("Starting Terminal Typer...")
     print("Press Ctrl+C to exit")
-    print("Press F4 to cycle through visual styles")
-    print("-" * 40)
+    print("----------------------------------------")
     
-    # Use the example keymap file
-    keymap_file = os.path.join("examples", "keymap.json")
+    # Default to reverse video mode
+    visual_style = "reverse"
     
+    # Check if a visual style was provided as command line argument
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "reverse":
+            visual_style = sys.argv[1]
+            print(f"Using visual style: {visual_style}")
+        else:
+            print(f"Warning: Only 'reverse' visual style is supported")
+            print("Using default 'reverse' style")
+    
+    # Keymap file path
+    keymap_file = "examples/keymap.json"
+    
+    # Check if keymap file exists
     if not os.path.exists(keymap_file):
-        print(f"Error: Keymap file not found at {keymap_file}")
-        print("Please ensure the keymap.json file exists in the examples directory.")
+        print(f"Error: Keymap file '{keymap_file}' not found!")
+        print("Please ensure the keymap file exists in the examples directory.")
         sys.exit(1)
     
-    # Check for visual style argument
-    visual_style = "bold"  # Default
-    if len(sys.argv) > 1:
-        visual_style = sys.argv[1]
-        print(f"Using visual style: {visual_style}")
-    
-    # Available styles
-    available_styles = ["bold", "reverse", "brackets", "symbols", "exclamation", "hash", "arrows", "stars"]
-    
-    if visual_style not in available_styles:
-        print(f"Warning: Unknown visual style '{visual_style}'")
-        print(f"Available styles: {', '.join(available_styles)}")
-        print("Using default 'bold' style")
-        visual_style = "bold"
-    
-    # Run the terminal interface
+    # Create and run the interface
     interface = TerminalInterface(keymap_file, visual_style=visual_style)
     interface.run()
 

@@ -4,59 +4,58 @@ Unit tests for the input listener functionality.
 """
 
 import unittest
-import sys
-import os
-import json
 import tempfile
-
-# Add src directory to path for imports
+import os
+import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from input_listener import InputListener
 from keymap_parser import KeymapParser
-
+from wpm_calculator import WPMCalculator
 
 class TestInputListener(unittest.TestCase):
     """Test cases for InputListener class."""
     
     def setUp(self):
         """Set up test fixtures."""
-        self.listener = InputListener()
-        
-        # Create a test keymap for layer detection
-        self.test_keymap = {
+        # Create a temporary keymap file for testing
+        self.temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json')
+        keymap_data = {
             "keymap": {
                 "compatible": "zmk,keymap",
                 "layers": {
                     "default_layer": [
-                        "TAB Q W E R T Y U I O P BSPC",
-                        "LCTRL A S D F G H J K L SEMI SQT",
-                        "LSHFT Z X C V B N M COMMA DOT FSLH ESC",
-                        "mo(1) LEFT_GUI SPACE RET LCTRL mo(2)"
+                        "TAB Q W E R T Y U I O P BSP",
+                        "CTL A S D F G H J K L ; '",
+                        "SFT Z X C V B N M , . / ESC",
+                        "LWR LEF SPC RET CTL RSE"
                     ],
                     "lower_layer": [
-                        "TAB N1 N2 N3 N4 N5 N6 N7 N8 N9 N0 BSPC",
-                        "BT_CLR BT_SEL_0 BT_SEL_1 BT_SEL_2 BT_SEL_3 BT_SEL_4 LEFT DOWN UP RIGHT trans trans",
-                        "LSHFT trans trans C_PREV C_PLAY_PAUSE C_NEXT HOME END C_VOLUME_UP C_VOL_DN C_MUTE TILDE",
-                        "LGUI trans SPACE RET DEL RALT"
+                        "TAB N1 N2 N3 N4 N5 N6 N7 N8 N9 N0 BSP",
+                        "CTL A S D F G H J K L ; '",
+                        "SFT Z X C V B N M , . / ESC",
+                        "LWR LEF SPC RET CTL RSE"
                     ],
                     "raise_layer": [
-                        "TAB EXCL AT HASH DLLR PRCNT CARET AMPS ASTRK LPAR RPAR BSPC",
-                        "LCTRL trans trans trans SCRL_LEFT SCRL_UP MINUS EQUAL LBKT RBKT BSLH GRAVE",
-                        "LSHFT trans trans trans SCRL_RIGHT SCRL_DOWN UNDER PLUS LBRC RBRC PIPE TILDE",
-                        "SCRL_DOWN LEFT_GUI SPACE RET trans RALT"
+                        "TAB EXCL AT HASH DLR PRCNT CIRC AMPS STAR LPAR RPAR BSP",
+                        "CTL A S D F G H J K L ; '",
+                        "SFT Z X C V B N M , . / ESC",
+                        "LWR LEF SPC RET CTL RSE"
                     ]
                 }
             }
         }
-        
-        # Create temporary keymap file
-        self.temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
-        json.dump(self.test_keymap, self.temp_file)
+        import json
+        json.dump(keymap_data, self.temp_file)
         self.temp_file.close()
         
-        self.parser = KeymapParser(self.temp_file.name)
-        self.listener.set_keymap_parser(self.parser)
+        # Create input listener with test keymap
+        self.listener = InputListener()
+        self.keymap_parser = KeymapParser(self.temp_file.name)
+        self.wpm_calculator = WPMCalculator()
+        
+        self.listener.set_keymap_parser(self.keymap_parser)
+        self.listener.set_wpm_calculator(self.wpm_calculator)
     
     def tearDown(self):
         """Clean up test fixtures."""
@@ -67,8 +66,7 @@ class TestInputListener(unittest.TestCase):
         """Test initial state of input listener."""
         self.assertEqual(len(self.listener.pressed_keys), 0)
         self.assertEqual(self.listener.current_layer, "default_layer")
-        self.assertEqual(len(self.listener.layer_keys), 0)
-        self.assertEqual(len(self.listener.unsupported_keys), 0)
+        self.assertEqual(len(self.listener.layer_keys), 3)  # Now has 3 layer sets
     
     def test_key_mapping(self):
         """Test key mapping functionality."""
@@ -91,8 +89,9 @@ class TestInputListener(unittest.TestCase):
     
     def test_layer_key_mapping(self):
         """Test layer key mapping."""
-        self.assertEqual(self.listener.layer_key_mapping.get('mo(1)'), 'lower_layer')
-        self.assertEqual(self.listener.layer_key_mapping.get('mo(2)'), 'raise_layer')
+        # Test that F1 and F2 are mapped to layer keys
+        self.assertEqual(self.listener.key_mapping.get('f1'), 'mo(1)')
+        self.assertEqual(self.listener.key_mapping.get('f2'), 'mo(2)')
     
     def test_find_layer_for_key(self):
         """Test finding which layer contains a key."""
@@ -102,7 +101,7 @@ class TestInputListener(unittest.TestCase):
         self.assertEqual(self.listener._find_layer_for_key("EXCL"), "raise_layer")
         
         # Test key that exists in multiple layers
-        self.assertEqual(self.listener._find_layer_for_key("SPACE"), "default_layer")
+        self.assertEqual(self.listener._find_layer_for_key("SPC"), "default_layer")
         
         # Test non-existent key
         self.assertIsNone(self.listener._find_layer_for_key("NONEXISTENT"))
@@ -113,7 +112,7 @@ class TestInputListener(unittest.TestCase):
         self.assertIn("Q", keys)
         self.assertIn("A", keys)
         self.assertIn("Z", keys)
-        self.assertIn("SPACE", keys)
+        self.assertIn("SPC", keys)
     
     def test_is_printable_key(self):
         """Test printable key detection."""
@@ -167,15 +166,12 @@ class TestInputListener(unittest.TestCase):
         self.listener._on_press_simulation("Q")
         self.listener._on_press_simulation("A")
         
-        pressed_keys = self.listener.get_pressed_keys()
-        self.assertIn("Q", pressed_keys)
-        self.assertIn("A", pressed_keys)
+        # Test that pressed keys are accessible
+        self.assertIn("Q", self.listener.pressed_keys)
+        self.assertIn("A", self.listener.pressed_keys)
         
-        current_layer = self.listener.get_current_layer()
-        self.assertEqual(current_layer, "default_layer")
-        
-        unsupported_keys = self.listener.get_unsupported_keys()
-        self.assertEqual(len(unsupported_keys), 0)
+        # Test current layer
+        self.assertEqual(self.listener.current_layer, "default_layer")
 
 
 if __name__ == '__main__':
