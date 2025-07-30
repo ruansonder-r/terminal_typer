@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
 Unit tests for the keymap parser functionality.
+
+DEPRECATED: This tests the old JSON-based KeymapParser which is no longer used.
+The application now uses CorneKeymapParser for DTS format keymaps.
+These tests are kept for backward compatibility but should not be relied upon.
 """
 
 import unittest
@@ -8,6 +12,7 @@ import sys
 import os
 import json
 import tempfile
+import warnings
 
 # Add src directory to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -16,10 +21,21 @@ from keymap_parser import KeymapParser
 
 
 class TestKeymapParser(unittest.TestCase):
-    """Test cases for KeymapParser class."""
+    """Test cases for KeymapParser class.
+    
+    DEPRECATED: This tests the old JSON-based parser that is no longer used.
+    The application now uses CorneKeymapParser for DTS format keymaps.
+    """
     
     def setUp(self):
         """Set up test fixtures."""
+        # Show deprecation warning
+        warnings.warn(
+            "TestKeymapParser is deprecated. Use TestCorneKeymapParser instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
         # Create a temporary keymap file for testing
         self.test_keymap = {
             "keymap": {
