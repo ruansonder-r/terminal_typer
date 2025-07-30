@@ -2,7 +2,7 @@ from pynput import keyboard
 from typing import Set, Callable, Optional
 import threading
 import time
-from keymap_parser import KeymapParser
+from corne_keymap_parser import CorneKeymapParser
 from wpm_calculator import WPMCalculator
 
 class InputListener:
@@ -20,14 +20,14 @@ class InputListener:
             'k': 'K', 'l': 'L', 'm': 'M', 'n': 'N', 'o': 'O', 'p': 'P', 'q': 'Q', 'r': 'R', 's': 'S', 't': 'T',
             'u': 'U', 'v': 'V', 'w': 'W', 'x': 'X', 'y': 'Y', 'z': 'Z',
             
-            # Numbers
-            '0': 'N0', '1': 'N1', '2': 'N2', '3': 'N3', '4': 'N4', '5': 'N5', '6': 'N6', '7': 'N7', '8': 'N8', '9': 'N9',
+            # Numbers - map to display names for automatic layer switching
+            '0': '0', '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
             
-            # Symbols
-            ',': 'COMMA', '.': 'DOT', '/': 'SLASH', ';': 'SEMI', "'": 'QUOTE', '[': 'LBRC', ']': 'RBRC', '\\': 'BSLH',
-            '=': 'EQUAL', '-': 'MINUS', '`': 'GRAVE', '~': 'TILDE', '!': 'EXCL', '@': 'AT', '#': 'HASH', '$': 'DLR',
-            '%': 'PRCNT', '^': 'CIRC', '&': 'AMPS', '*': 'STAR', '(': 'LPAR', ')': 'RPAR', '_': 'UNDS', '+': 'PLUS',
-            '{': 'LCBR', '}': 'RCBR', '|': 'PIPE', '<': 'LABK', '>': 'RABK', '?': 'QUES', ':': 'COLN', '"': 'DQUO',
+            # Symbols - map to display names for automatic layer switching
+            ',': ',', '.': '.', '/': '/', ';': ';', "'": "'", '[': '[', ']': ']', '\\': '\\',
+            '=': '=', '-': '-', '`': '`', '~': '~', '!': '!', '@': '@', '#': '#', '$': '$',
+            '%': '%', '^': '^', '&': '&', '*': '*', '(': '(', ')': ')', '_': '_', '+': '+',
+            '{': '{', '}': '}', '|': '|', '<': '<', '>': '>', '?': '?', ':': ':', '"': '"',
             
             # Modifiers
             'ctrl_l': 'LCTRL', 'ctrl_r': 'RCTRL', 'alt_l': 'LALT', 'alt_r': 'RALT', 'cmd': 'LGUI', 'cmd_r': 'RGUI',
@@ -50,7 +50,7 @@ class InputListener:
             'media_next': 'NEXT', 'media_previous': 'PREV', 'media_play_pause': 'PLAY', 'media_stop': 'STOP',
             
             # Layer keys (using F1/F2 as layer keys)
-            'f1': 'mo(1)', 'f2': 'mo(2)',  # Using F1/F2 as layer keys
+            'f1': 'L1', 'f2': 'L2',  # Updated to match corne keymap format
         }
         
         # Currently pressed keys
@@ -74,7 +74,7 @@ class InputListener:
         self.wpm_calculator: Optional[WPMCalculator] = None
         
         # Keymap parser for automatic layer detection
-        self.keymap_parser: Optional[KeymapParser] = None
+        self.keymap_parser: Optional[CorneKeymapParser] = None
         
         # Word tracking
         self.current_word = ""
@@ -84,7 +84,7 @@ class InputListener:
         """Set the WPM calculator for keystroke tracking."""
         self.wpm_calculator = wpm_calculator
     
-    def set_keymap_parser(self, keymap_parser: KeymapParser) -> None:
+    def set_keymap_parser(self, keymap_parser: CorneKeymapParser) -> None:
         """Set the keymap parser for automatic layer detection."""
         self.keymap_parser = keymap_parser
     
@@ -201,14 +201,14 @@ class InputListener:
     
     def _handle_layer_key_press(self, zmk_key: str) -> None:
         """Handle layer key press events."""
-        if zmk_key == 'mo(1)':
+        if zmk_key == 'L1':
             self.current_layer = "lower_layer"
-        elif zmk_key == 'mo(2)':
+        elif zmk_key == 'L2':
             self.current_layer = "raise_layer"
     
     def _handle_layer_key_release(self, zmk_key: str) -> None:
         """Handle layer key release events."""
-        if zmk_key in ['mo(1)', 'mo(2)']:
+        if zmk_key in ['L1', 'L2']:
             self.current_layer = "default_layer"
     
     def _check_automatic_layer_switch(self, zmk_key: str) -> None:
@@ -230,20 +230,7 @@ class InputListener:
         if not self.keymap_parser:
             return None
         
-        layer_names = self.keymap_parser.get_layer_names()
-        
-        for layer_name in layer_names:
-            layer_keys = self.keymap_parser.get_layer_keys(layer_name)
-            if layer_keys:
-                # Flatten the layer keys into a set
-                all_keys = set()
-                for row in layer_keys:
-                    all_keys.update(row)
-                
-                if zmk_key in all_keys:
-                    return layer_name
-        
-        return None
+        return self.keymap_parser._find_layer_for_key(zmk_key)
     
     def _get_current_layer_keys(self) -> Set[str]:
         """Get all keys from the current layer."""
@@ -278,7 +265,8 @@ class InputListener:
             if self.wpm_calculator and self._is_printable_key(key_str):
                 self.wpm_calculator.add_keystroke()
             self._handle_layer_key_press(zmk_key)
-            if self.keymap_parser:
+            # Only check automatic layer switch for non-layer modifier keys
+            if self.keymap_parser and zmk_key not in ['L1', 'L2']:
                 self._check_automatic_layer_switch(zmk_key)
             self._notify_key_change()
     

@@ -30,12 +30,12 @@ def main():
             print("Using default 'reverse' style")
     
     # Keymap file path
-    keymap_file = "examples/keymap.json"
+    keymap_file = "examples/corne.keymap"
     
     # Check if keymap file exists
     if not os.path.exists(keymap_file):
         print(f"Error: Keymap file '{keymap_file}' not found!")
-        print("Please ensure the keymap file exists in the examples directory.")
+        print("Please ensure the corne.keymap file exists in the examples directory.")
         sys.exit(1)
     
     # Create and run the interface

@@ -2,7 +2,7 @@ import curses
 import signal
 import sys
 from typing import Set, Optional
-from keymap_parser import KeymapParser
+from corne_keymap_parser import CorneKeymapParser
 from keyboard_renderer import KeyboardRenderer
 from input_listener import InputListener
 from wpm_calculator import WPMCalculator
@@ -18,7 +18,7 @@ class TerminalInterface:
         Initialize the terminal interface.
         
         Args:
-            keymap_file: Path to the ZMK keymap JSON file
+            keymap_file: Path to the ZMK corne.keymap file
             visual_style: Visual style for pressed keys (only "reverse" supported)
         """
         self.keymap_file = keymap_file
@@ -43,7 +43,7 @@ class TerminalInterface:
     def _initialize_components(self) -> None:
         """Initialize all components."""
         # Initialize parser
-        self.parser = KeymapParser(self.keymap_file)
+        self.parser = CorneKeymapParser(self.keymap_file)
         
         # Initialize renderer with reverse video style
         self.renderer = KeyboardRenderer(visual_style="reverse")
