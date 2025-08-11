@@ -119,13 +119,19 @@ class KeyboardRenderer:
             left_indent = " " * (i * 2)
             right_indent = " " * (-1*i * 2)
             
-            if self.wpm_calculator and i == 1:
+            base_spacing = "         "
+            adjusted_right_indent = " " * max(0, (4 - i*2) * 2)
+            gap_width = len(base_spacing) + len(adjusted_right_indent)
+
+            if self.wpm_calculator is not None and i == 1:
                 wpm_display = self.wpm_calculator.get_wpm_display()
-                adjusted_right_indent = " " * max(0, (2 - i*4) * 2)
-                center_line = f"{left_indent}{left_str} {wpm_display} {adjusted_right_indent}{right_str}"
+                # Fit WPM text into the existing gap without changing total spacing
+                if len(wpm_display) < gap_width:
+                    gap_content = wpm_display.center(gap_width)
+                else:
+                    gap_content = wpm_display[:gap_width]
+                center_line = f"{left_indent}{left_str}{gap_content}{right_str}"
             else:
-                base_spacing = "         "
-                adjusted_right_indent = " " * max(0, (4 - i*2) * 2)
                 center_line = f"{left_indent}{left_str}{base_spacing}{adjusted_right_indent}{right_str}"
             
             lines.append(center_line)

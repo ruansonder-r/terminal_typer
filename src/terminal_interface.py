@@ -50,6 +50,8 @@ class TerminalInterface:
         
         # Initialize WPM calculator
         self.wpm_calculator = WPMCalculator()
+        # Provide WPM calculator to renderer so it can render WPM between halves
+        self.renderer.set_wpm_calculator(self.wpm_calculator)
         
         # Initialize input listener
         self.input_listener = InputListener()
