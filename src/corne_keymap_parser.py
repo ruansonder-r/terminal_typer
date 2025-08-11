@@ -101,18 +101,28 @@ class CorneKeymapParser:
     
     def _parse_key_line(self, line: str) -> List[str]:
         """Parse a single line of key bindings."""
-        # Find all key bindings in the line
-        # Pattern to match &kp KEY, &mo NUMBER, &bt KEY, &msc KEY
-        key_pattern = r'&(kp|mo|bt|msc)\s+([A-Z_0-9]+(?:\s+[0-9]+)?)'
+        # Find all key bindings in the line, including transparent keys
+        # Pattern to match &kp KEY, &mo NUMBER, &bt KEY, &msc KEY, &trans
+        key_pattern = r'&(kp|mo|bt|msc|trans)\s*([A-Z_0-9]*\s*[0-9]*)'
         matches = re.findall(key_pattern, line)
         
         # Convert ZMK key names to more readable format
         converted_keys = []
         for key_type, key_name in matches:
+            # Normalize whitespace in captured key name to avoid trailing spaces breaking mappings
+            key_name = key_name.strip()
+            # Handle transparent keys
+            if key_type == 'trans':
+                converted_keys.append('TRANS')
+                continue
+            
             # Handle the case where we have a number after the key name (like in &mo 1)
             if ' ' in key_name:
-                base_name, number = key_name.split(' ', 1)
-                full_key = f"{base_name} {number}"
+                # Split on any whitespace and strip parts
+                base_name, number = key_name.split(None, 1)
+                base_name = base_name.strip()
+                number = number.strip()
+                full_key = f"{base_name} {number}" if number else base_name
             else:
                 full_key = key_name
             

@@ -141,6 +141,38 @@ class TestKeyboardRenderer(unittest.TestCase):
         self.assertIn("[LWR]", result)
         self.assertIn("[RSE]", result)
 
+    def test_transparent_keys_formatting(self):
+        """Test that transparent keys are handled properly without breaking formatting."""
+        # Create a layer with transparent keys
+        layer_keys_with_trans = [
+            ["TAB", "TRANS", "W", "TRANS", "R", "T", "Y", "U", "I", "O", "P", "BSPC"],
+            ["LCTRL", "A", "TRANS", "D", "TRANS", "G", "H", "J", "K", "L", "SEMI", "'"],
+            ["LSHFT", "Z", "X", "TRANS", "V", "B", "N", "M", "COMMA", "DOT", "FSLH", "ESC"],
+            ["L1", "LEFT_GUI", "SPACE", "RET", "LCTRL", "L2"]
+        ]
+        
+        result = self.renderer.render_keyboard(layer_keys_with_trans)
+        
+        # Should render without errors
+        self.assertIsNotNone(result)
+        self.assertNotEqual(result, "No keys to render")
+        
+        # Should have proper structure (4 lines)
+        lines = result.split('\n')
+        self.assertEqual(len(lines), 4)
+        
+        # Should contain the expected keys
+        self.assertIn("TAB", result)
+        self.assertIn("W", result)
+        self.assertIn("R", result)
+        
+        # Should not contain "TRANS" in the rendered output
+        self.assertNotIn("TRANS", result)
+        
+        # Should have proper spacing for transparent keys
+        # Check that there are empty spaces where transparent keys should be
+        self.assertIn("     ", result)  # Empty spaces for transparent keys
+
 
 if __name__ == '__main__':
     unittest.main() 

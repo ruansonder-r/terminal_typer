@@ -73,6 +73,10 @@ class KeyboardRenderer:
     
     def get_key_display(self, key: str) -> str:
         """Get the display character for a key."""
+        # Handle transparent keys
+        if key == 'TRANS':
+            return '   '  # Empty space for transparent keys
+        
         return self.key_display_map.get(key, key[:3].upper())
     
     def render_keyboard(self, layer_keys: List[List[str]], layer_name: str = "") -> str:
@@ -149,8 +153,14 @@ class KeyboardRenderer:
     
     def _format_pressed_key(self, display: str) -> str:
         """Format a pressed key with reverse video highlighting."""
+        # Handle empty/transparent keys
+        if display.strip() == '' or display == '   ':
+            return '   '  # Empty space for transparent keys
         return f"REV[{display:^3}]REV"
     
     def _format_normal_key(self, display: str) -> str:
         """Format a normal key."""
+        # Handle empty/transparent keys
+        if display.strip() == '' or display == '   ':
+            return '   '  # Empty space for transparent keys
         return f"[{display:^3}]" 
